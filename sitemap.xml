@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Update the domain below to your deployed URL. Pages are listed for the current demo. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://manishbista11.com.np/</loc></url>
+  <url><loc>https://manishbista11.com.np/portfolio.html</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/blog.html</loc></url>
+  <url><loc>https://manishbista11.com.np/contact.html</loc></url>
+  <url><loc>https://manishbista11.com.np/terminal.html</loc></url>
+  <url><loc>https://manishbista11.com.np/infrastructure/infrastructure.html</loc></url>
+  <url><loc>https://manishbista11.com.np/system-design/design-system.html</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=thanos-long-term-metrics-multi-cluster-eks</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=loki-vs-elk-log-aggregation</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=github-actions-docker-cache</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=zero-downtime-cloud-migration-notes</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=terraform-module-structure-that-scales</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=slo-error-budgets-in-practice</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=kubernetes-resource-requests-that-make-sense</loc></url>
+  <url><loc>https://manishbista11.com.np/blog/post.html?slug=reading-a-postmortem-well</loc></url>
+</urlset>

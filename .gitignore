@@ -1,0 +1,18 @@
+# Terraform local state and downloaded providers
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Local deployment artifacts
+.deploy-package
+.deploy-package.zip
+.deploy-url.txt
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store

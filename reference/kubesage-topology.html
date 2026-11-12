@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KubeSage Topology</title>
+<style>
+  body{margin:0;padding:28px 20px;background:#f6f7f9;color:#14161c;font-family:Inter,ui-sans-serif,system-ui,sans-serif;transition:background .2s,color .2s}
+  html.dark body{background:#0d0f12;color:#eceef2}
+  main{max-width:1080px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:1px solid #d6dae4;padding-bottom:10px;margin-bottom:14px}
+  html.dark header{border-color:#323846}
+  h1{margin:0;font-size:28px;font-weight:650}
+  .sub{margin:4px 0 0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;opacity:.7}
+  #theme{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.06em;padding:7px 11px;border-radius:7px;border:1px solid #d6dae4;background:transparent;color:inherit;cursor:pointer;min-height:34px}
+  html.dark #theme{border-color:#323846}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Topology</h1><p class="sub">KubeSage — AI incident copilot on Azure (AKS · GitOps · RAG agent)</p></div>
+    <button id="theme" type="button">DARK</button>
+  </header>
+  <div id="topo"></div>
+</main>
+<script>
+// KubeSage topology — interactive, touch-friendly, downloadable (SVG / PNG).
+// Framework-free ES module. Usage:
+//   import { mountTopology } from './kubesage-topology.js'
+//   const t = mountTopology(document.getElementById('topo'), { theme: 'auto' })
+//   t.destroy()
+// theme: 'auto' (follows <html class="dark"> or data-theme="dark"), 'light' or 'dark'.
+
+const W = 1060
+const H = 640
+const VY = 104 // crop empty top band
+const VH = 524
+const NW = 190
+const NH = 64
+
+const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+const SANS = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+
+const THEMES = {
+  light: {
+    bg: '#ffffff', grid: '#eef0f4', group: '#f3f4f8', groupStroke: '#e3e6ee',
+    node: '#ffffff', nodeStroke: '#d6dae4', text: '#14161c', sub: '#5d6475', label: '#6b7285',
+    build: '#e2703a', core: '#2f5bea', ai: '#7c4dff', svc: '#8a93a6', edge: '#8a93a6',
+    agentFill: '#e9eefc', cardBg: '#ffffff', cardStroke: '#d6dae4',
+  },
+  dark: {
+    bg: '#121418', grid: '#1b1e24', group: '#181b21', groupStroke: '#262a33',
+    node: '#16191f', nodeStroke: '#323846', text: '#eceef2', sub: '#9097a6', label: '#8a91a1',
+    build: '#f08a4b', core: '#5b84ff', ai: '#a58bff', svc: '#8a93a6', edge: '#7c8496',
+    agentFill: '#1a2238', cardBg: '#1a1d23', cardStroke: '#323846',
+  },
+}
+
+const GROUPS = [
+  { id: 'build', label: 'BUILD PIPELINE', x: 12, y: 140, w: 242, h: 394 },
+  { id: 'aks', label: 'AKS CLUSTER · KUBESAGE-RG', x: 300, y: 120, w: 470, h: 424 },
+  { id: 'svc', label: 'MANAGED SERVICES', x: 810, y: 120, w: 230, h: 424 },
+]
+
+// kind: build | core | ai | svc  (sets the colour bar)
+const NODES = [
+  { id: 'repo', x: 40, y: 180, kind: 'build', cat: 'SOURCE', name: 'kubesage repo', sub: 'app code + Terraform',
+    desc: 'Monorepo with the demo services, the agent and all Terraform. Every change starts as a push to main.' },
+  { id: 'actions', x: 40, y: 270, kind: 'build', cat: 'CI', name: 'GitHub Actions', sub: 'test · Trivy · OIDC',
+    desc: 'Lints, tests and builds images, blocks on HIGH/CRITICAL Trivy findings, and logs in to Azure with OIDC — no stored cloud secrets.' },
+  { id: 'acr', x: 40, y: 360, kind: 'build', cat: 'REGISTRY', name: 'Azure ACR', sub: 'private images · Basic',
+    desc: 'Private container registry. AKS pulls with its managed identity (AcrPull), so there are no image pull secrets.' },
+  { id: 'gitops', x: 40, y: 450, kind: 'build', cat: 'GITOPS', name: 'kubesage-gitops', sub: 'Helm values · tags',
+    desc: 'Desired state of the cluster. CI only bumps image tags here; ArgoCD reads it. Rollbacks are git reverts.' },
+  { id: 'argocd', x: 320, y: 180, kind: 'core', cat: 'CD', name: 'ArgoCD', sub: 'app-of-apps · self-heal',
+    desc: 'Watches kubesage-gitops and keeps the cluster equal to Git. Manual kubectl changes are reverted (self-heal).' },
+  { id: 'demo', x: 560, y: 180, kind: 'core', cat: 'WORKLOAD', name: 'Demo apps', sub: 'orders · payments',
+    desc: 'Two FastAPI services with fault switches (crash, OOM, latency, 5xx) so the agent always has a real incident.' },
+  { id: 'prom', x: 320, y: 320, kind: 'core', cat: 'MONITORING', name: 'Prometheus', sub: '+ Alertmanager rules',
+    desc: 'Scrapes /metrics, evaluates alert rules and sends firing alerts to the agent as a JSON webhook.' },
+  { id: 'agent', x: 560, y: 320, kind: 'ai', cat: 'AI AGENT', name: 'KubeSage Agent', sub: 'FastAPI · tool calling', main: true,
+    desc: 'Investigates each alert with read-only tools (pod status, logs, events, recent deploys), searches runbooks, and returns a root cause with evidence. Capped at 6 tool steps.' },
+  { id: 'grafana', x: 320, y: 460, kind: 'core', cat: 'DASHBOARDS', name: 'Grafana', sub: 'latency · errors · tokens',
+    desc: 'Request rate, P95 latency and error rate per service, plus agent investigations and LLM token usage.' },
+  { id: 'qdrant', x: 560, y: 460, kind: 'ai', cat: 'VECTOR DB', name: 'Qdrant', sub: 'runbook embeddings',
+    desc: 'Runbooks split by heading and embedded. The agent retrieves the top 3 chunks and must cite the one it used (RAG).' },
+  { id: 'openai', x: 830, y: 180, kind: 'ai', cat: 'LLM', name: 'Azure OpenAI', sub: 'chat + embeddings',
+    desc: 'A small chat model for reasoning and tool calling, and text-embedding-3-small for the runbook index. Pay per token.' },
+  { id: 'kv', x: 830, y: 320, kind: 'svc', cat: 'SECRETS', name: 'Azure Key Vault', sub: 'CSI driver mount',
+    desc: 'Holds the OpenAI key and GitHub token, mounted into the agent pod by the Secrets Store CSI driver. Nothing in Git.' },
+  { id: 'issues', x: 830, y: 460, kind: 'svc', cat: 'OUTPUT', name: 'GitHub Issues', sub: 'root cause · /approve',
+    desc: 'Each investigation becomes an issue: root cause, evidence, runbook and fix. Commenting /approve-rollback triggers a git revert — a human stays in the loop.' },
+]
+
+// style: build (dashed orange) | flow (solid accent) | watch (dotted) | plain (solid grey)
+const EDGES = [
+  { id: 'e1', from: 'repo', to: 'actions', style: 'build', d: 'M135 244V270', label: 'git push', lx: 143, ly: 261, a: 'start' },
+  { id: 'e2', from: 'actions', to: 'acr', style: 'build', d: 'M135 334V360', label: 'image', lx: 143, ly: 351, a: 'start' },
+  { id: 'e3', from: 'actions', to: 'gitops', style: 'build', d: 'M40 302H26V482H40', label: 'bump tag', lx: 20, ly: 392, a: 'middle', rot: true },
+  { id: 'e4', from: 'acr', to: 'demo', style: 'plain', d: 'M230 392H260V150H655V180', label: 'pull image', lx: 600, ly: 144, a: 'middle' },
+  { id: 'e5', from: 'gitops', to: 'argocd', style: 'flow', d: 'M230 482H290V212H320', label: 'watch', lx: 298, ly: 262, a: 'start' },
+  { id: 'e6', from: 'argocd', to: 'demo', style: 'flow', d: 'M510 212H560', label: 'sync', lx: 535, ly: 204, a: 'middle' },
+  { id: 'e7', from: 'demo', to: 'prom', style: 'watch', d: 'M600 244V286H415V320', label: 'metrics', lx: 508, ly: 280, a: 'middle' },
+  { id: 'e8', from: 'agent', to: 'demo', style: 'watch', d: 'M700 320V244', label: 'logs · events', lx: 692, ly: 286, a: 'end' },
+  { id: 'e9', from: 'prom', to: 'agent', style: 'flow', d: 'M510 352H560', label: 'alerts', lx: 535, ly: 344, a: 'middle' },
+  { id: 'e10', from: 'prom', to: 'grafana', style: 'plain', d: 'M415 384V460', label: 'query', lx: 423, ly: 426, a: 'start' },
+  { id: 'e11', from: 'agent', to: 'qdrant', style: 'flow', d: 'M655 384V460', label: 'RAG search', lx: 663, ly: 426, a: 'start' },
+  { id: 'e12', from: 'agent', to: 'openai', style: 'flow', d: 'M750 340H780V212H830', label: 'LLM calls', lx: 788, ly: 276, a: 'start' },
+  { id: 'e13', from: 'kv', to: 'agent', style: 'plain', d: 'M830 362H750', label: 'secrets', lx: 790, ly: 356, a: 'middle' },
+  { id: 'e14', from: 'agent', to: 'issues', style: 'flow', d: 'M750 384H800V492H830', label: 'opens issue', lx: 808, ly: 430, a: 'start' },
+  { id: 'e15', from: 'issues', to: 'gitops', style: 'build', d: 'M925 524V610H135V514', label: '/approve-rollback → git revert', lx: 530, ly: 602, a: 'middle' },
+]
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+function edgeColor(t, style) {
+  if (style === 'build') return t.build
+  if (style === 'flow') return t.core
+  return t.edge
+}
+function edgeDash(style) {
+  if (style === 'build') return '6 4'
+  if (style === 'watch') return '2 4'
+  return ''
+}
+function kindColor(t, kind) {
+  return { build: t.build, core: t.core, ai: t.ai, svc: t.svc }[kind]
+}
+
+function renderSVG(t, title) {
+  const markers = ['build', 'flow', 'watch', 'plain'].map((s) =>
+    `<marker id="kst-${s}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${edgeColor(t, s)}"/></marker>`
+  ).join('')
+
+  let grid = ''
+  for (let x = 0; x <= W; x += 24) grid += `<line x1="${x}" y1="0" x2="${x}" y2="${H}"/>`
+  for (let y = 0; y <= H; y += 24) grid += `<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`
+
+  const groups = GROUPS.map((g) =>
+    `<g data-group="${g.id}"><rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="10" fill="${t.group}" stroke="${t.groupStroke}"/>` +
+    `<text x="${g.x + 16}" y="${g.y + 20}" font-family="${esc(MONO)}" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="${t.label}">${esc(g.label)}</text></g>`
+  ).join('')
+
+  const edges = EDGES.map((e) => {
+    const c = edgeColor(t, e.style)
+    const dash = edgeDash(e.style)
+    const label = e.rot
+      ? `<text transform="translate(${e.lx} ${e.ly}) rotate(-90)" text-anchor="middle" font-family="${esc(MONO)}" font-size="9.5" fill="${t.sub}">${esc(e.label)}</text>`
+      : `<text x="${e.lx}" y="${e.ly}" text-anchor="${e.a}" font-family="${esc(MONO)}" font-size="9.5" fill="${t.sub}">${esc(e.label)}</text>`
+    return `<g class="kst-edge" data-edge="${e.id}" data-from="${e.from}" data-to="${e.to}">` +
+      `<path class="kst-line" d="${e.d}" fill="none" stroke="${c}" stroke-width="1.4"${dash ? ` stroke-dasharray="${dash}"` : ''} marker-end="url(#kst-${e.style})"/>` +
+      `${label}</g>`
+  }).join('')
+
+  const nodes = NODES.map((n) => {
+    const bar = kindColor(t, n.kind)
+    const fill = n.main ? t.agentFill : t.node
+    const stroke = n.main ? t.core : t.nodeStroke
+    return `<g class="kst-node" data-node="${n.id}" tabindex="0" role="button" aria-label="${esc(n.name)}: ${esc(n.sub)}" style="cursor:pointer;outline:none">` +
+      `<rect class="kst-box" x="${n.x}" y="${n.y}" width="${NW}" height="${NH}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${n.main ? 1.8 : 1.2}"/>` +
+      `<rect x="${n.x + 10}" y="${n.y + 12}" width="3" height="${NH - 24}" rx="1.5" fill="${bar}"/>` +
+      `<text x="${n.x + 22}" y="${n.y + 21}" font-family="${esc(MONO)}" font-size="9" font-weight="600" letter-spacing="1" fill="${t.label}">${esc(n.cat)}</text>` +
+      `<text x="${n.x + 22}" y="${n.y + 39}" font-family="${esc(SANS)}" font-size="13.5" font-weight="650" fill="${t.text}">${esc(n.name)}</text>` +
+      `<text x="${n.x + 22}" y="${n.y + 54}" font-family="${esc(MONO)}" font-size="9.5" fill="${t.sub}">${esc(n.sub)}</text></g>`
+  }).join('')
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 ${VY} ${W} ${VH}" width="${W}" height="${VH}" role="img" aria-label="${esc(title)}">` +
+    `<title>${esc(title)}</title><defs>${markers}</defs>` +
+    `<rect width="${W}" height="${H}" fill="${t.bg}"/>` +
+    `<g stroke="${t.grid}" stroke-width="1">${grid}</g>` +
+    `${groups}<g class="kst-edges">${edges}</g><g class="kst-nodes">${nodes}</g></svg>`
+}
+
+const CSS = `
+.kst{position:relative;font-family:${SANS};-webkit-tap-highlight-color:transparent}
+.kst-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.kst-hint{font-family:${MONO};font-size:12px;opacity:.75;margin:0}
+.kst-actions{display:flex;gap:6px}
+.kst-btn{font-family:${MONO};font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 11px;border-radius:7px;border:1px solid var(--kst-stroke);background:var(--kst-card);color:var(--kst-text);cursor:pointer;min-height:34px}
+.kst-btn:hover{border-color:var(--kst-accent)}
+.kst-btn:focus-visible{outline:2px solid var(--kst-accent);outline-offset:2px}
+.kst-scroll{overflow-x:auto;border:1px solid var(--kst-stroke);border-radius:12px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+.kst-scroll svg{display:block;width:100%;min-width:860px;height:auto}
+.kst-node .kst-box{transition:stroke .15s,stroke-width .15s}
+.kst-node:hover .kst-box,.kst-node:focus-visible .kst-box{stroke:var(--kst-accent);stroke-width:1.8}
+.kst-node,.kst-edge{transition:opacity .2s}
+.kst.has-sel .kst-node:not(.on){opacity:.28}
+.kst.has-sel .kst-edge:not(.on){opacity:.12}
+.kst-node.sel .kst-box{stroke:var(--kst-accent);stroke-width:2.2}
+.kst-edge.on .kst-line{stroke-width:2.2;stroke-dasharray:6 4;animation:kst-flow .9s linear infinite}
+@keyframes kst-flow{to{stroke-dashoffset:-20}}
+@media (prefers-reduced-motion:reduce){.kst-edge.on .kst-line{animation:none}}
+.kst-card{position:absolute;z-index:5;width:300px;max-width:calc(100% - 24px);box-sizing:border-box;padding:14px 16px;border-radius:10px;background:var(--kst-card);border:1px solid var(--kst-stroke);color:var(--kst-text);box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:13px;line-height:1.55}
+.kst-card[hidden]{display:none}
+.kst-card h4{margin:0 0 6px;font-size:14px;font-weight:650}
+.kst-card .kst-cat{font-family:${MONO};font-size:10px;letter-spacing:.1em;opacity:.7;margin-bottom:2px}
+.kst-card p{margin:0;font-family:${MONO};font-size:12px;opacity:.9}
+.kst-card .kst-links{margin-top:8px;font-family:${MONO};font-size:11px;opacity:.7}
+.kst-card .kst-x{position:absolute;top:8px;right:8px;width:28px;height:28px;border:0;background:transparent;color:inherit;font-size:16px;cursor:pointer;border-radius:6px}
+.kst-card.sheet{left:12px!important;right:12px;bottom:12px;top:auto!important;width:auto;max-width:none}
+`
+
+function mountTopology(el, options = {}) {
+  const opts = { theme: 'auto', title: 'KubeSage — AI incident copilot on Azure', filename: 'kubesage-topology', ...options }
+  if (!document.getElementById('kst-style')) {
+    const s = document.createElement('style')
+    s.id = 'kst-style'
+    s.textContent = CSS
+    document.head.appendChild(s)
+  }
+
+  el.classList.add('kst')
+  el.innerHTML =
+    `<div class="kst-bar"><p class="kst-hint">Tap a node to trace its connections. Tap it again to dismiss.</p>` +
+    `<div class="kst-actions"><button type="button" class="kst-btn" data-act="svg">↓ SVG</button><button type="button" class="kst-btn" data-act="png">↓ PNG</button></div></div>` +
+    `<div class="kst-scroll"></div>` +
+    `<div class="kst-card" role="dialog" aria-live="polite" hidden><button type="button" class="kst-x" aria-label="Close">×</button><div class="kst-cat"></div><h4></h4><p></p><div class="kst-links"></div></div>`
+
+  const scroll = el.querySelector('.kst-scroll')
+  const card = el.querySelector('.kst-card')
+  let selected = null
+  let current = 'light'
+
+  const resolveTheme = () => {
+    if (opts.theme === 'light' || opts.theme === 'dark') return opts.theme
+    const h = document.documentElement
+    if (h.classList.contains('dark') || h.dataset.theme === 'dark') return 'dark'
+    return 'light'
+  }
+
+  const applyVars = (t) => {
+    el.style.setProperty('--kst-card', t.cardBg)
+    el.style.setProperty('--kst-stroke', t.cardStroke)
+    el.style.setProperty('--kst-text', t.text)
+    el.style.setProperty('--kst-accent', t.core)
+    el.style.color = t.text
+  }
+
+  const render = () => {
+    current = resolveTheme()
+    const t = THEMES[current]
+    applyVars(t)
+    scroll.innerHTML = renderSVG(t, opts.title)
+    if (selected) select(selected, true)
+  }
+
+  const svg = () => scroll.querySelector('svg')
+
+  const neighbours = (id) => {
+    const set = new Set([id])
+    const edges = []
+    EDGES.forEach((e) => {
+      if (e.from === id || e.to === id) { edges.push(e.id); set.add(e.from); set.add(e.to) }
+    })
+    return { set, edges }
+  }
+
+  const clear = () => {
+    selected = null
+    el.classList.remove('has-sel')
+    el.querySelectorAll('.kst-node,.kst-edge').forEach((n) => n.classList.remove('on', 'sel'))
+    card.hidden = true
+  }
+
+  const placeCard = (n) => {
+    const s = svg()
+    const scale = s.getBoundingClientRect().width / W
+    const elRect = el.getBoundingClientRect()
+    const scRect = scroll.getBoundingClientRect()
+    const offX = scRect.left - elRect.left - scroll.scrollLeft
+    const offY = scRect.top - elRect.top
+    if (el.clientWidth < 640) { card.classList.add('sheet'); return }
+    card.classList.remove('sheet')
+    const cw = card.offsetWidth
+    const ch = card.offsetHeight
+    let x = offX + n.x * scale
+    let y = offY + (n.y - VY + NH) * scale + 10
+    if (y + ch > offY + scRect.height) y = offY + (n.y - VY) * scale - ch - 10
+    x = Math.max(8, Math.min(x, el.clientWidth - cw - 8))
+    card.style.left = `${x}px`
+    card.style.top = `${Math.max(offY + 8, y)}px`
+  }
+
+  const select = (id, keep) => {
+    if (!keep && selected === id) { clear(); return }
+    selected = id
+    const { set, edges } = neighbours(id)
+    el.classList.add('has-sel')
+    el.querySelectorAll('.kst-node').forEach((g) => {
+      g.classList.toggle('on', set.has(g.dataset.node))
+      g.classList.toggle('sel', g.dataset.node === id)
+    })
+    el.querySelectorAll('.kst-edge').forEach((g) => g.classList.toggle('on', edges.includes(g.dataset.edge)))
+    const n = NODES.find((x) => x.id === id)
+    const names = [...set].filter((x) => x !== id).map((x) => NODES.find((y) => y.id === x).name)
+    card.querySelector('.kst-cat').textContent = n.cat
+    card.querySelector('h4').textContent = n.name
+    card.querySelector('p').textContent = n.desc
+    card.querySelector('.kst-links').textContent = `Connected: ${names.join(', ')}`
+    card.hidden = false
+    placeCard(n)
+  }
+
+  const onClick = (ev) => {
+    const btn = ev.target.closest('[data-act]')
+    if (btn) { download(btn.dataset.act); return }
+    if (ev.target.closest('.kst-x')) { clear(); return }
+    if (ev.target.closest('.kst-card')) return
+    const node = ev.target.closest('.kst-node')
+    if (node) select(node.dataset.node)
+    else if (ev.target.closest('.kst-scroll')) clear()
+  }
+  const onKey = (ev) => {
+    if (ev.key === 'Escape') { clear(); return }
+    const node = ev.target.closest && ev.target.closest('.kst-node')
+    if (node && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); select(node.dataset.node) }
+  }
+  const onResize = () => { if (selected) placeCard(NODES.find((x) => x.id === selected)) }
+
+  const exportString = () => renderSVG(THEMES[current], opts.title)
+
+  const save = (blob, name) => {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  }
+
+  const download = (kind) => {
+    const str = exportString()
+    if (kind === 'svg') { save(new Blob([str], { type: 'image/svg+xml' }), `${opts.filename}.svg`); return }
+    const img = new Image()
+    const url = URL.createObjectURL(new Blob([str], { type: 'image/svg+xml' }))
+    img.onload = () => {
+      const k = 2
+      const c = document.createElement('canvas')
+      c.width = W * k
+      c.height = VH * k
+      const ctx = c.getContext('2d')
+      ctx.scale(k, k)
+      ctx.drawImage(img, 0, 0, W, VH)
+      URL.revokeObjectURL(url)
+      c.toBlob((b) => save(b, `${opts.filename}.png`), 'image/png')
+    }
+    img.src = url
+  }
+
+  el.addEventListener('click', onClick)
+  el.addEventListener('keydown', onKey)
+  window.addEventListener('resize', onResize)
+  scroll.addEventListener('scroll', onResize, { passive: true })
+  const mo = new MutationObserver(() => { if (resolveTheme() !== current) render() })
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] })
+
+  render()
+
+  return {
+    select: (id) => select(id, true),
+    clear,
+    download,
+    setTheme: (th) => { opts.theme = th; render() },
+    destroy: () => {
+      el.removeEventListener('click', onClick)
+      el.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', onResize)
+      mo.disconnect()
+      el.innerHTML = ''
+      el.classList.remove('kst', 'has-sel')
+    },
+  }
+}
+
+const topologyData = { NODES, EDGES, GROUPS }
+
+const t = mountTopology(document.getElementById('topo'));
+const btn = document.getElementById('theme');
+const sync = () => { btn.textContent = document.documentElement.classList.contains('dark') ? 'LIGHT' : 'DARK'; };
+btn.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); sync(); });
+sync();
+</script>
+</body>
+</html>
