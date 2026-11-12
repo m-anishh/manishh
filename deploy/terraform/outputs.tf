@@ -16,5 +16,5 @@ output "github_actions_role_arn" {
 }
 
 output "load_balancer_controller_role_arn" {
-  value = module.aws_load_balancer_controller_irsa.iam_role_arn
+  value = module.aws_load_balancer_controller_irsa.arn
 }
