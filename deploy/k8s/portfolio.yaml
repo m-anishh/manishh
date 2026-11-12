@@ -68,7 +68,8 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - http:
+    - host: ${DOMAIN}
+      http:
         paths:
           - path: /
             pathType: Prefix
