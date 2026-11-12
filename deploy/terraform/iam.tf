@@ -52,8 +52,11 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     sid    = "EcrRepositoryPush"
     effect = "Allow"
     actions = [
+      "ecr:BatchGetImage",
       "ecr:BatchCheckLayerAvailability",
       "ecr:CompleteLayerUpload",
+      "ecr:DescribeImages",
+      "ecr:DescribeRepositories",
       "ecr:InitiateLayerUpload",
       "ecr:PutImage",
       "ecr:UploadLayerPart"
