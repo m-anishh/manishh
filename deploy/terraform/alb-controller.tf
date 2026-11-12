@@ -91,7 +91,7 @@ module "aws_load_balancer_controller_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
   version = "~> 6.0"
 
-  name = "${var.project_name}-aws-load-balancer-controller"
+  name = "${var.project_name}-alb-controller"
 
   policies = {
     controller = aws_iam_policy.aws_load_balancer_controller.arn
@@ -116,6 +116,14 @@ resource "helm_release" "aws_load_balancer_controller" {
     {
       name  = "clusterName"
       value = module.eks.cluster_name
+    },
+    {
+      name  = "region"
+      value = var.aws_region
+    },
+    {
+      name  = "vpcId"
+      value = module.vpc.vpc_id
     },
     {
       name  = "serviceAccount.create"
