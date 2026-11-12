@@ -75,6 +75,7 @@ data "aws_iam_policy_document" "aws_load_balancer_controller" {
     actions = [
       "ec2:AuthorizeSecurityGroupIngress",
       "ec2:CreateSecurityGroup",
+      "ec2:CreateTags",
       "ec2:DeleteSecurityGroup",
       "ec2:RevokeSecurityGroupIngress"
     ]
