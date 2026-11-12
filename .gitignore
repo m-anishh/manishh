@@ -16,3 +16,6 @@ crash.*.log
 *.swp
 Thumbs.db
 .DS_Store
+
+# README files
+README*
