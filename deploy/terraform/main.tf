@@ -1,5 +1,11 @@
 data "aws_caller_identity" "current" {}
 
+# Resolves an assumed-role session ARN to the underlying IAM role ARN,
+# which is what EKS access entries require as principal_arn.
+data "aws_iam_session_context" "current" {
+  arn = data.aws_caller_identity.current.arn
+}
+
 data "aws_availability_zones" "available" {
   state = "available"
 }
@@ -63,7 +69,7 @@ module "eks" {
 
   access_entries = {
     terraform_user = {
-      principal_arn = data.aws_caller_identity.current.arn
+      principal_arn = data.aws_iam_session_context.current.issuer_arn
       policy_associations = {
         admin = {
           policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
