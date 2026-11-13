@@ -13,8 +13,8 @@
 
   /* ---------------- Theme ---------------- */
   var Theme = {
-    get: function () { try { return localStorage.getItem("mb-theme"); } catch (e) { return null; } },
-    set: function (v) { try { localStorage.setItem("mb-theme", v); } catch (e) {} },
+    get: function () { try { return localStorage.getItem("mb-theme-v2"); } catch (e) { return null; } },
+    set: function (v) { try { localStorage.setItem("mb-theme-v2", v); } catch (e) {} },
     current: function () {
       var saved = Theme.get();
       if (saved) return saved;
