@@ -37,7 +37,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["Observability", "Kubernetes", "AWS", "Prometheus"],
-    cover: "assets/img/covers/post-thanos.svg",
+    cover: "/assets/img/covers/post-thanos.svg",
     featured: true,
     body: `
 <p>Prometheus is excellent at <em>recent</em> data and deliberately bad at history: local TSDB retention is measured in weeks, and it has no idea that your other five clusters exist. Once you run more than one cluster, two questions show up on the same day — "where do I query all of them at once?" and "why did we page at 3am last quarter?" Thanos answers both.</p>
@@ -99,7 +99,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["Observability", "Logging", "DevOps"],
-    cover: "assets/img/covers/post-loki.svg",
+    cover: "/assets/img/covers/post-loki.svg",
     featured: false,
     body: `
 <p>"Just ship the logs to Elasticsearch" is advice that ages badly around the time your storage bill does. Loki takes the opposite bet: index as little as possible. Here is how that choice plays out in practice.</p>
@@ -135,7 +135,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["CI/CD", "Docker", "DevOps"],
-    cover: "assets/img/covers/post-gha-docker.svg",
+    cover: "/assets/img/covers/post-gha-docker.svg",
     featured: false,
     body: `
 <p>A cold Docker build in CI is a tax you pay on every push. Buildx gives you three cache backends, and the right one depends on where your images live and how your branches behave.</p>
@@ -172,7 +172,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["AWS", "Migration"],
-    cover: "assets/img/covers/post-migration.svg",
+    cover: "/assets/img/covers/post-migration.svg",
     featured: false,
     body: `
 <p>"Zero downtime" is less a technique and more a budget: you spend engineering effort to buy the absence of a maintenance window. Here is where we spent it.</p>
@@ -205,7 +205,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["Terraform", "IaC", "Cloud"],
-    cover: "assets/img/covers/post-terraform.svg",
+    cover: "/assets/img/covers/post-terraform.svg",
     featured: false,
     body: `
 <p>Most Terraform messes start the same way: one giant root module, one enormous state file, and a plan that takes four minutes and touches everything. The fix is boundaries.</p>
@@ -239,7 +239,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["Reliability", "Observability"],
-    cover: "assets/img/covers/post-slo.svg",
+    cover: "/assets/img/covers/post-slo.svg",
     featured: false,
     body: `
 <p>SLOs fail in teams for a boring reason: they get written once, pasted into a wiki, and never looked at again. A useful SLO is one that changes a decision.</p>
@@ -264,7 +264,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["Kubernetes", "Cost"],
-    cover: "assets/img/covers/post-k8s.svg",
+    cover: "/assets/img/covers/post-k8s.svg",
     featured: false,
     body: `
 <p>Requests and limits are the two most misunderstood numbers in a Kubernetes manifest. Get them wrong and you either throttle healthy apps or pay for a cluster that's 40% air.</p>
@@ -296,7 +296,7 @@ window.POSTS = [
     status: "published",
     lang: "EN",
     tags: ["Culture"],
-    cover: "assets/img/covers/post-postmortem.svg",
+    cover: "/assets/img/covers/post-postmortem.svg",
     featured: false,
     body: `
 <p>Most teams have learned to <em>write</em> blameless post-mortems. Fewer have learned to read them in a way that changes anything.</p>
@@ -319,7 +319,7 @@ window.POSTS = [
     status: "draft",
     lang: "EN",
     tags: ["Kubernetes", "Networking"],
-    cover: "assets/img/covers/post-mesh.svg",
+    cover: "/assets/img/covers/post-mesh.svg",
     featured: false,
     body: `
 <p>This post is still a draft — it is intentionally hidden from the listing and search to demonstrate the publishing flow. Flip <code>status</code> to <code>"published"</code> in <code>content/posts.js</code> and it will appear automatically.</p>

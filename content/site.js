@@ -14,10 +14,10 @@ window.SITE = {
     experience: "2 years",
     email: "manishhbsta11@gmail.com",
     phone: "+977 9763216231",
-    avatar: null,  // put your photo URL or a local path like "assets/img/manish.jpg"
+    avatar: null,  // put your photo URL or a local path like "/assets/img/manish.jpg"
     // Placeholder CV in assets/cv/ — replace that PDF with your real one (keep the
     // filename, or change the paths here). "main" = Download CV, "ats" = ATS button.
-    cv: { main: "assets/cv/manish-bista-cv.pdf", ats: "assets/cv/manish-bista-cv.pdf" },
+    cv: { main: "/assets/cv/manish-bista-cv.pdf", ats: "/assets/cv/manish-bista-cv.pdf" },
     availability: { status: "Available for projects", meta: "Replies within 24h" }
   },
 
@@ -116,7 +116,7 @@ window.SITE = {
     {
       feature: true, category: "Projects", title: "Trail — Observability Platform",
       desc: "A self-service observability platform for internal teams: Prometheus + Thanos for long-term metrics, Loki for logs, and a Grafana portal with golden-signal dashboards generated from service manifests.",
-      image: "assets/img/covers/trail.svg",
+      image: "/assets/img/covers/trail.svg",
       links: [
         { label: "View project", href: "/portfolio.html", primary: true },
         { label: "Website", href: "#", external: true },
@@ -126,7 +126,7 @@ window.SITE = {
     {
       feature: true, category: "Projects", title: "Sherpa — GitOps Delivery",
       desc: "An Argo CD based delivery pipeline with progressive rollouts, automatic rollback on SLO burn, and preview environments spun up per pull request.",
-      image: "assets/img/covers/sherpa.svg",
+      image: "/assets/img/covers/sherpa.svg",
       links: [
         { label: "View project", href: "/portfolio.html", primary: true },
         { label: "Github", href: "#", external: true }
@@ -135,49 +135,49 @@ window.SITE = {
     {
       category: "Projects", title: "Annapurna — RAG Assistant Platform",
       desc: "A retrieval-augmented assistant platform: vector search, GPU-backed model serving, prompt and version tracking, guardrails, and an evaluation harness wired into CI.",
-      image: "assets/img/covers/annapurna.svg",
+      image: "/assets/img/covers/annapurna.svg",
       links: [ { label: "View project", href: "/portfolio.html", primary: true }, { label: "Github", href: "#", external: true } ]
     },
     {
       category: "Projects", title: "Basecamp — Landing Zone",
       desc: "Terraform modules for an AWS multi-account Landing Zone with SSO, guardrails and centralised logging.",
-      image: "assets/img/covers/basecamp.svg",
+      image: "/assets/img/covers/basecamp.svg",
       links: [ { label: "View project", href: "/portfolio.html", primary: true }, { label: "Github", href: "#", external: true } ]
     },
     {
       category: "Projects", title: "Yeti — Cost Explorer Bot",
       desc: "A Slack bot that posts weekly AWS cost anomalies and right-sizing suggestions pulled from Cost Explorer and Compute Optimizer.",
-      image: "assets/img/covers/yeti.svg",
+      image: "/assets/img/covers/yeti.svg",
       links: [ { label: "View project", href: "/portfolio.html", primary: true }, { label: "Website", href: "#", external: true } ]
     },
     {
       category: "Projects", title: "Pokhara — Static Image Proxy",
       desc: "An on-the-fly image resizing proxy backed by S3 and a CDN, trimming origin egress and page weight across the fleet.",
-      image: "assets/img/covers/pokhara.svg",
+      image: "/assets/img/covers/pokhara.svg",
       links: [ { label: "View project", href: "/portfolio.html", primary: true }, { label: "Github", href: "#", external: true } ]
     },
     {
       category: "Projects", title: "Lumbini — Incident Timeline",
       desc: "A lightweight incident tracker that assembles a timeline from alert, chat and deploy events for faster post-mortems.",
-      image: "assets/img/covers/lumbini.svg",
+      image: "/assets/img/covers/lumbini.svg",
       links: [ { label: "View project", href: "/portfolio.html", primary: true } ]
     },
     {
       category: "Certifications", title: "AWS Certified Solutions Architect – Associate",
       desc: "Designing resilient, cost-optimised architectures on AWS. Credential verifiable on request.",
-      image: "assets/img/covers/aws-saa.svg",
+      image: "/assets/img/covers/aws-saa.svg",
       links: [ { label: "Verify", href: "#", external: true, primary: true } ]
     },
     {
       category: "Certifications", title: "Certified Kubernetes Administrator (CKA)",
       desc: "Cluster administration, workloads, networking and troubleshooting on upstream Kubernetes.",
-      image: "assets/img/covers/cka.svg",
+      image: "/assets/img/covers/cka.svg",
       links: [ { label: "Verify", href: "#", external: true, primary: true } ]
     },
     {
       category: "Certifications", title: "HashiCorp Certified: Terraform Associate",
       desc: "Infrastructure as code workflows, modules and state management with Terraform.",
-      image: "assets/img/covers/terraform.svg",
+      image: "/assets/img/covers/terraform.svg",
       links: [ { label: "Verify", href: "#", external: true, primary: true } ]
     }
   ]
