@@ -1,0 +1,6 @@
+aws_region        = "eu-north-1"
+project_name      = "portfolio"
+cluster_name      = "portfolio"
+domain_name       = "manishbista11.com.np"
+github_repository = "m-anishh/manishh"
+github_branch     = "main"
