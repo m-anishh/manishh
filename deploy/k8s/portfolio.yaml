@@ -6,6 +6,13 @@ metadata:
     app.kubernetes.io/name: portfolio
 spec:
   replicas: 2
+  # Never drop below the desired count during a rollout: add one new pod
+  # before removing an old one.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: portfolio
@@ -14,10 +21,27 @@ spec:
       labels:
         app.kubernetes.io/name: portfolio
     spec:
+      # Keep the two replicas on different nodes, so draining one node
+      # during the node roll can never take both pods down at once.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: portfolio
+                topologyKey: kubernetes.io/hostname
+      # Give the ALB time to deregister the pod before it stops serving.
+      terminationGracePeriodSeconds: 30
       containers:
         - name: portfolio
           image: ${IMAGE}
           imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "10"]
           ports:
             - name: http
               containerPort: 80
@@ -78,3 +102,15 @@ spec:
                 name: portfolio
                 port:
                   name: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portfolio
+  labels:
+    app.kubernetes.io/name: portfolio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portfolio
