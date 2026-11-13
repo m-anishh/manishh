@@ -115,8 +115,9 @@
   function cvBtn(kind, inner, cls, aria) {
     var cv = SITE.profile.cv || {};
     if (cv[kind]) return '<a class="cv-btn ' + cls + '" href="' + cv[kind] + '" download target="_blank" rel="noopener" aria-label="' + aria + '" title="' + aria + '">' + inner + '</a>';
-    return '<button class="cv-btn ' + cls + '" data-cv aria-label="' + aria + '" title="Add your CV in content/site.js">' + inner + '</button>';
+    return ""; // no CV configured for this kind — render nothing
   }
+  function hasCv() { var cv = SITE.profile.cv || {}; return !!cv.main; }
 
   /* ---------------- Header ---------------- */
   function header() {
@@ -142,11 +143,13 @@
           '<p class="header-signal__meta">' + p.availability.meta + '</p>' +
         '</div>' +
         '<div class="header-action">' +
-          '<div class="cv-group cv-group--header">' +
-            '<div class="cv-group__segments" role="group" aria-label="Download CV">' +
-              cvBtn("main", '<span class="cv-btn__icon">' + ICONS.get("download", 16) + '</span><span class="cv-btn__text">Download CV</span>', "cv-btn--main", "Download CV as PDF") +
-              cvBtn("ats", "ATS", "cv-btn--variant", "Download ATS-friendly CV") +
-            '</div></div>' +
+          (hasCv()
+            ? '<div class="cv-group cv-group--header">' +
+                '<div class="cv-group__segments" role="group" aria-label="Download CV">' +
+                  cvBtn("main", '<span class="cv-btn__icon">' + ICONS.get("download", 16) + '</span><span class="cv-btn__text">Download CV</span>', "cv-btn--main", "Download CV as PDF") +
+                  cvBtn("ats", "ATS", "cv-btn--variant", "Download ATS-friendly CV") +
+                '</div></div>'
+            : '') +
           '<a href="mailto:' + p.email + '" class="header-action__email" aria-label="Email ' + p.email + '">' + ICONS.get("mail", 14) + ' ' + p.email + '</a>' +
           '<ul class="header-action__social" aria-label="Social media links">' + socials + '</ul>' +
         '</div>' +
