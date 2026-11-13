@@ -18,7 +18,7 @@
     current: function () {
       var saved = Theme.get();
       if (saved) return saved;
-      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      return "light"; // first-time default is light; returning visitors keep their saved choice
     },
     apply: function (v) { document.documentElement.setAttribute("data-theme", v); },
     toggle: function () {
