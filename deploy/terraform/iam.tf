@@ -30,7 +30,12 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_branch}"]
+      # GitHub may issue the sub claim as owner/repo or as the ID-suffixed
+      # owner@<id>/repo@<id> form; accept both.
+      values = [
+        "repo:${var.github_repository}:ref:refs/heads/${var.github_branch}",
+        "repo:${join("/", [for part in split("/", var.github_repository) : "${part}@*"])}:ref:refs/heads/${var.github_branch}",
+      ]
     }
   }
 }
