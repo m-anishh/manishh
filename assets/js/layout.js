@@ -18,7 +18,7 @@
     current: function () {
       var saved = Theme.get();
       if (saved) return saved;
-      return "light"; // first-time default is light; returning visitors keep their saved choice
+      return "dark"; // first-time default is dark; returning visitors keep their saved choice
     },
     apply: function (v) { document.documentElement.setAttribute("data-theme", v); },
     toggle: function () {
