@@ -180,6 +180,12 @@ window.SITE = {
       desc: "Infrastructure as code workflows, modules and state management with Terraform.",
       image: "/assets/img/covers/terraform.svg",
       links: [ { label: "Verify", href: "#", external: true, primary: true } ]
+    },
+    {
+      category: "Certifications", title: "Ethical Hacking",
+      desc: "Foundations of ethical hacking, vulnerability assessment and defensive security practices.",
+      image: "/assets/img/covers/ethical-hacking.svg",
+      links: [ { label: "Verify", href: "#", external: true, primary: true } ]
     }
   ]
 };
