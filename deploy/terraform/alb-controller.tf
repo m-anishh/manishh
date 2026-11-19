@@ -1,3 +1,4 @@
+
 data "aws_iam_policy_document" "aws_load_balancer_controller" {
   statement {
     effect = "Allow"
@@ -75,7 +76,6 @@ data "aws_iam_policy_document" "aws_load_balancer_controller" {
     actions = [
       "ec2:AuthorizeSecurityGroupIngress",
       "ec2:CreateSecurityGroup",
-      "ec2:CreateTags",
       "ec2:DeleteSecurityGroup",
       "ec2:RevokeSecurityGroupIngress"
     ]
@@ -117,14 +117,6 @@ resource "helm_release" "aws_load_balancer_controller" {
     {
       name  = "clusterName"
       value = module.eks.cluster_name
-    },
-    {
-      name  = "region"
-      value = var.aws_region
-    },
-    {
-      name  = "vpcId"
-      value = module.vpc.vpc_id
     },
     {
       name  = "serviceAccount.create"

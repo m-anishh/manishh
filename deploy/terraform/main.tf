@@ -64,6 +64,10 @@ module "eks" {
       min_size     = var.node_min_size
       max_size     = var.node_max_size
       desired_size = var.node_desired_size
+
+      # Inject the bastion SSH key so you can hop bastion -> node.
+      # Changing this rolls the nodes (one at a time) to relaunch with the key.
+      key_name = aws_key_pair.bastion.key_name
     }
   }
 

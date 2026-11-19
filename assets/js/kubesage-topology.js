@@ -27,7 +27,7 @@
 
   var GROUPS = [
     { id: 'build', label: 'BUILD PIPELINE', x: 12, y: 140, w: 242, h: 394 },
-    { id: 'aks', label: 'AKS CLUSTER · KUBESAGE-RG', x: 300, y: 120, w: 470, h: 424 },
+    { id: 'eks', label: 'EKS CLUSTER · KUBESAGE', x: 300, y: 120, w: 470, h: 424 },
     { id: 'svc', label: 'MANAGED SERVICES', x: 810, y: 120, w: 230, h: 424 }
   ];
 
@@ -36,9 +36,9 @@
     { id: 'repo', x: 40, y: 180, kind: 'build', cat: 'SOURCE', name: 'kubesage repo', sub: 'app code + Terraform',
       desc: 'Monorepo with the demo services, the agent and all Terraform. Every change starts as a push to main.' },
     { id: 'actions', x: 40, y: 270, kind: 'build', cat: 'CI', name: 'GitHub Actions', sub: 'test · Trivy · OIDC',
-      desc: 'Lints, tests and builds images, blocks on HIGH/CRITICAL Trivy findings, and logs in to Azure with OIDC — no stored cloud secrets.' },
-    { id: 'acr', x: 40, y: 360, kind: 'build', cat: 'REGISTRY', name: 'Azure ACR', sub: 'private images · Basic',
-      desc: 'Private container registry. AKS pulls with its managed identity (AcrPull), so there are no image pull secrets.' },
+      desc: 'Lints, tests and builds images, blocks on HIGH/CRITICAL Trivy findings, and logs in to AWS with GitHub OIDC — no stored cloud secrets.' },
+    { id: 'ecr', x: 40, y: 360, kind: 'build', cat: 'REGISTRY', name: 'Amazon ECR', sub: 'private images',
+      desc: 'Private container registry. EKS nodes pull images through their IAM role and the ECR authorization workflow.' },
     { id: 'gitops', x: 40, y: 450, kind: 'build', cat: 'GITOPS', name: 'kubesage-gitops', sub: 'Helm values · tags',
       desc: 'Desired state of the cluster. CI only bumps image tags here; ArgoCD reads it. Rollbacks are git reverts.' },
     { id: 'argocd', x: 320, y: 180, kind: 'core', cat: 'CD', name: 'ArgoCD', sub: 'app-of-apps · self-heal',
@@ -53,10 +53,10 @@
       desc: 'Request rate, P95 latency and error rate per service, plus agent investigations and LLM token usage.' },
     { id: 'qdrant', x: 560, y: 460, kind: 'ai', cat: 'VECTOR DB', name: 'Qdrant', sub: 'runbook embeddings',
       desc: 'Runbooks split by heading and embedded. The agent retrieves the top 3 chunks and must cite the one it used (RAG).' },
-    { id: 'openai', x: 830, y: 180, kind: 'ai', cat: 'LLM', name: 'Azure OpenAI', sub: 'chat + embeddings',
-      desc: 'A small chat model for reasoning and tool calling, and text-embedding-3-small for the runbook index. Pay per token.' },
-    { id: 'kv', x: 830, y: 320, kind: 'svc', cat: 'SECRETS', name: 'Azure Key Vault', sub: 'CSI driver mount',
-      desc: 'Holds the OpenAI key and GitHub token, mounted into the agent pod by the Secrets Store CSI driver. Nothing in Git.' },
+    { id: 'bedrock', x: 830, y: 180, kind: 'ai', cat: 'LLM', name: 'Amazon Bedrock', sub: 'chat + embeddings',
+      desc: 'Foundation models provide reasoning and tool calling; an embedding model indexes the runbook corpus.' },
+    { id: 'secrets', x: 830, y: 320, kind: 'svc', cat: 'SECRETS', name: 'AWS Secrets Manager', sub: 'Secrets Store CSI',
+      desc: 'Stores the model credentials and GitHub token. The agent pod receives them through IRSA and the Secrets Store CSI driver.' },
     { id: 'issues', x: 830, y: 460, kind: 'svc', cat: 'OUTPUT', name: 'GitHub Issues', sub: 'root cause · /approve',
       desc: 'Each investigation becomes an issue: root cause, evidence, runbook and fix. Commenting /approve-rollback triggers a git revert — a human stays in the loop.' }
   ];
@@ -64,9 +64,9 @@
   // style: build (dashed orange) | flow (solid accent) | watch (dotted) | plain (solid grey)
   var EDGES = [
     { id: 'e1', from: 'repo', to: 'actions', style: 'build', d: 'M135 244V270', label: 'git push', lx: 143, ly: 261, a: 'start' },
-    { id: 'e2', from: 'actions', to: 'acr', style: 'build', d: 'M135 334V360', label: 'image', lx: 143, ly: 351, a: 'start' },
+    { id: 'e2', from: 'actions', to: 'ecr', style: 'build', d: 'M135 334V360', label: 'image', lx: 143, ly: 351, a: 'start' },
     { id: 'e3', from: 'actions', to: 'gitops', style: 'build', d: 'M40 302H26V482H40', label: 'bump tag', lx: 20, ly: 392, a: 'middle', rot: true },
-    { id: 'e4', from: 'acr', to: 'demo', style: 'plain', d: 'M230 392H260V150H655V180', label: 'pull image', lx: 600, ly: 144, a: 'middle' },
+    { id: 'e4', from: 'ecr', to: 'demo', style: 'plain', d: 'M230 392H260V150H655V180', label: 'pull image', lx: 600, ly: 144, a: 'middle' },
     { id: 'e5', from: 'gitops', to: 'argocd', style: 'flow', d: 'M230 482H290V212H320', label: 'watch', lx: 298, ly: 262, a: 'start' },
     { id: 'e6', from: 'argocd', to: 'demo', style: 'flow', d: 'M510 212H560', label: 'sync', lx: 535, ly: 204, a: 'middle' },
     { id: 'e7', from: 'demo', to: 'prom', style: 'watch', d: 'M600 244V286H415V320', label: 'metrics', lx: 508, ly: 280, a: 'middle' },
@@ -74,8 +74,8 @@
     { id: 'e9', from: 'prom', to: 'agent', style: 'flow', d: 'M510 352H560', label: 'alerts', lx: 535, ly: 344, a: 'middle' },
     { id: 'e10', from: 'prom', to: 'grafana', style: 'plain', d: 'M415 384V460', label: 'query', lx: 423, ly: 426, a: 'start' },
     { id: 'e11', from: 'agent', to: 'qdrant', style: 'flow', d: 'M655 384V460', label: 'RAG search', lx: 663, ly: 426, a: 'start' },
-    { id: 'e12', from: 'agent', to: 'openai', style: 'flow', d: 'M750 340H780V212H830', label: 'LLM calls', lx: 788, ly: 276, a: 'start' },
-    { id: 'e13', from: 'kv', to: 'agent', style: 'plain', d: 'M830 362H750', label: 'secrets', lx: 790, ly: 356, a: 'middle' },
+    { id: 'e12', from: 'agent', to: 'bedrock', style: 'flow', d: 'M750 340H780V212H830', label: 'LLM calls', lx: 788, ly: 276, a: 'start' },
+    { id: 'e13', from: 'secrets', to: 'agent', style: 'plain', d: 'M830 362H750', label: 'secrets', lx: 790, ly: 356, a: 'middle' },
     { id: 'e14', from: 'agent', to: 'issues', style: 'flow', d: 'M750 384H800V492H830', label: 'opens issue', lx: 808, ly: 430, a: 'start' },
     { id: 'e15', from: 'issues', to: 'gitops', style: 'build', d: 'M925 524V610H135V514', label: '/approve-rollback → git revert', lx: 530, ly: 602, a: 'middle' }
   ];
@@ -160,7 +160,7 @@
 
   function mountTopology(el, options) {
     options = options || {};
-    var opts = { theme: 'auto', title: 'KubeSage — AI incident copilot on Azure', filename: 'kubesage-topology' };
+    var opts = { theme: 'auto', title: 'KubeSage — AI incident copilot on AWS', filename: 'kubesage-topology' };
     for (var k in options) opts[k] = options[k];
 
     if (!document.getElementById('kst-style')) {

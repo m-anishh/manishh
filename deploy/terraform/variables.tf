@@ -32,6 +32,11 @@ variable "github_branch" {
   default     = "main"
 }
 
+variable "ssh_allowed_cidrs" {
+  description = "CIDRs allowed to SSH to the bastion host (e.g. home and office IPs as /32)."
+  type        = list(string)
+}
+
 variable "node_instance_types" {
   description = "Managed node instance types."
   type        = list(string)

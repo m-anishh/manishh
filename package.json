@@ -1,0 +1,9 @@
+{
+  "name": "manishbista-portfolio",
+  "private": true,
+  "scripts": {
+    "build": "python deploy/build_static.py",
+    "dev": "python deploy/local_server.py",
+    "start": "python deploy/local_server.py"
+  }
+}

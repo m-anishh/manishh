@@ -9,6 +9,8 @@ crash.*.log
 .deploy-package
 .deploy-package.zip
 .deploy-url.txt
+dist/
+*.pem
 
 # Editor and OS files
 .vscode/
@@ -18,4 +20,5 @@ Thumbs.db
 .DS_Store
 
 # README files
-README*
+**/README.md
+!README.md
