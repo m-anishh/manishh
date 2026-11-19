@@ -41,7 +41,7 @@ window.SITE = {
   ],
 
   socials: [
-    { label: "LinkedIn",  icon: "linkedin",  href: "https://www.linkedin.com/in/manish-bista" },
+    { label: "LinkedIn",  icon: "linkedin",  href: "https://www.linkedin.com/in/manish-bista-56b7612b7/" },
     { label: "GitHub",    icon: "github",    href: "https://github.com/m-anishh" },
     { label: "X",         icon: "x",         href: "#" },
     { label: "Facebook",  icon: "facebook",  href: "https://www.facebook.com/share/1GbNygcv42/" },
