@@ -15,10 +15,8 @@ window.SITE = {
     email: "manishhbsta11@gmail.com",
     phone: "+977 9763216231",
     avatar: null,  // put your photo URL or a local path like "/assets/img/manish.jpg"
-    // No CV yet. When ready, drop a PDF in assets/cv/ and set the path(s) here —
-    // e.g. cv: { main: "/assets/cv/manish-bista-cv.pdf" } — and the Download CV
-    // button reappears automatically. "main" = Download CV, "ats" = ATS button.
-    cv: {},
+    // CV download. "main" = Download CV button, "ats" = optional ATS button.
+    cv: { main: "/assets/cv/manish-bista-cv.pdf", ats: "/assets/cv/manish-bista-cv.pdf" },
     availability: { status: "Available for projects", meta: "Replies within 24h" }
   },
 
