@@ -1,169 +1,145 @@
 /**
- * Vercel Routing Middleware — Telegram alerts for CV downloads & portfolio visits.
+ * Vercel Routing Middleware: Telegram alerts for CV downloads and portfolio visits.
  *
- * Runs before Vercel serves a file. It never changes the response: it only
- * sends a Telegram message in the background (context.waitUntil) and lets the
- * request continue as normal.
+ * Put this file in the ROOT of your Vercel project (the folder set as
+ * "Root Directory" in Vercel > Settings > General), next to package.json.
  *
- *  📄 CV download  → any request under /assets/cv/   (plays a sound)
- *  👀 Page visit   → a browser page load (HTML)       (silent)
+ * Environment variables (Vercel > Settings > Environment Variables):
+ *   TELEGRAM_BOT_TOKEN   token from @BotFather
+ *   TELEGRAM_CHAT_ID     your chat id
+ *   NOTIFY_VISITS        "true" (default) or "false" for CV alerts only
+ *   IGNORE_IPS           optional, your own IP(s), comma separated
  *
- * Environment variables (Vercel → Project → Settings → Environment Variables):
- *   TELEGRAM_BOT_TOKEN   token from @BotFather              (required)
- *   TELEGRAM_CHAT_ID     your chat id                       (required)
- *   NOTIFY_VISITS        "false" to turn off visit alerts   (optional, default on)
- *   IGNORE_IPS           your own IP(s), comma separated    (optional)
- *
- * If the token or chat id is missing, the middleware does nothing.
+ * It never blocks or changes the response. The alert is sent in the background.
  */
 
 export const config = {
-  // Skip static files (css, js, images, fonts...) except CV PDFs.
-  matcher: ["/((?!assets/(?!cv/)|content/|favicon|robots\\.txt|sitemap\\.xml).*)"],
+  // Skip static files (css, js, images, fonts), except anything under /assets/cv/.
+  matcher: [
+    "/assets/cv/:path*",
+    "/((?!assets/|favicon|robots.txt|sitemap.xml|.*\\.(?:css|js|png|jpg|jpeg|svg|webp|ico|woff2?|map|json|xml|txt)$).*)",
+  ],
 };
 
-const CV_DEDUPE_MS = 10 * 60 * 1000;    // same IP + file: once per 10 min
-const VISIT_DEDUPE_MS = 30 * 60 * 1000; // same IP visiting: once per 30 min
+const CV_DEDUPE_MS = 10 * 60 * 1000;    // 10 min
+const VISIT_DEDUPE_MS = 30 * 60 * 1000; // 30 min
+const seen = new Map(); // best-effort dedupe (per edge instance)
 
 const BOT_UA = new RegExp(
   [
     "bot", "crawl", "spider", "slurp", "preview", "fetch", "scan", "monitor",
     "curl", "wget", "python-requests", "httpclient", "go-http", "axios", "node-fetch",
     "facebookexternalhit", "linkedinbot", "whatsapp", "telegrambot", "slackbot",
-    "discordbot", "twitterbot", "skypeuripreview", "embedly", "headless", "lighthouse",
-    "uptime", "pingdom", "vercel",
+    "discordbot", "twitterbot", "skypeuripreview", "embedly", "headless",
+    "lighthouse", "uptime", "pingdom", "vercel",
   ].join("|"),
   "i"
 );
-
-// Best-effort dedupe. It lives in memory, so it resets when Vercel starts a new
-// instance. You may occasionally get a duplicate alert.
-const seen = new Map();
 
 export default function middleware(request, context) {
   try {
     const kind = classify(request);
     if (kind) {
-      const job = notify(kind, request).catch((err) =>
-        console.error("telegram-notify:", err)
-      );
-      if (context && typeof context.waitUntil === "function") context.waitUntil(job);
+      const task = notify(kind, request).catch((e) => console.error("notify:", e));
+      if (context && typeof context.waitUntil === "function") context.waitUntil(task);
     }
-  } catch (err) {
-    console.error("telegram-notify: filter error", err);
+  } catch (e) {
+    console.error("middleware:", e);
   }
-  // Returning nothing = continue to the normal file. The site is never affected.
+  // Returning nothing lets the request continue to your site as normal.
 }
 
-/** Returns "cv", "visit", or null. */
+function getIp(request) {
+  const xff = request.headers.get("x-forwarded-for") || "";
+  return request.headers.get("x-real-ip") || xff.split(",")[0].trim() || "unknown";
+}
+
 function classify(request) {
-  if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) return null;
   if (request.method !== "GET") return null;
 
-  const h = request.headers;
-  const ua = h.get("user-agent") || "";
+  const ua = request.headers.get("user-agent") || "";
   if (!ua || BOT_UA.test(ua)) return null;
 
+  const purpose = request.headers.get("sec-purpose") || request.headers.get("purpose") || "";
+  if (/prefetch|prerender/i.test(purpose)) return null;
+
   const ip = getIp(request);
-  const ignore = String(process.env.IGNORE_IPS || "")
-    .split(",").map((s) => s.trim()).filter(Boolean);
+  const ignore = (process.env.IGNORE_IPS || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (ignore.includes(ip)) return null;
 
   const path = new URL(request.url).pathname;
 
   if (path.startsWith("/assets/cv/")) {
-    if (!/\.pdf$/i.test(path)) return null;
-    // PDF viewers download in chunks: only count the first one.
-    const range = h.get("range");
+    // PDF viewers download in chunks. Count only the first one.
+    const range = request.headers.get("range");
     if (range && !/^bytes=0-/.test(range)) return null;
-    return isNew(`${ip}|cv|${path}`, CV_DEDUPE_MS) ? "cv" : null;
+    return dedupe(`${ip}|cv|${path}`, CV_DEDUPE_MS) ? "cv" : null;
   }
 
-  if (String(process.env.NOTIFY_VISITS).toLowerCase() === "false") return null;
-
-  // Real page loads only: the browser asks for a document, not a prefetch.
-  const dest = h.get("sec-fetch-dest");
-  const accept = h.get("accept") || "";
-  const isPage = dest ? dest === "document" : accept.includes("text/html");
-  if (!isPage) return null;
-  const purpose = h.get("sec-purpose") || h.get("purpose") || "";
-  if (/prefetch|prerender/i.test(purpose)) return null;
-  // Skip the private admin page.
+  if ((process.env.NOTIFY_VISITS || "true") !== "true") return null;
   if (/^\/admin(\.html)?\/?$/.test(path)) return null;
+  // Only real page loads (the browser asks for HTML).
+  if (!(request.headers.get("accept") || "").includes("text/html")) return null;
 
-  return isNew(`${ip}|visit`, VISIT_DEDUPE_MS) ? "visit" : null;
+  return dedupe(`${ip}|visit`, VISIT_DEDUPE_MS) ? "visit" : null;
 }
 
-function isNew(key, ttl) {
+function dedupe(key, ttl) {
   const now = Date.now();
   const last = seen.get(key);
   if (last && now - last < ttl) return false;
   seen.set(key, now);
-  if (seen.size > 1000) {
-    for (const [k, t] of seen) if (now - t > VISIT_DEDUPE_MS) seen.delete(k);
-  }
+  if (seen.size > 5000) seen.clear();
   return true;
 }
 
 async function notify(kind, request) {
-  const res = await fetch(
-    `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: process.env.TELEGRAM_CHAT_ID,
-        text: buildMessage(kind, request),
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-        disable_notification: kind === "visit", // visits arrive silently
-      }),
-    }
-  );
-  if (!res.ok) console.error("telegram-notify: Telegram error", res.status, await res.text());
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) {
+    console.error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set");
+    return;
+  }
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: buildMessage(kind, request),
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      disable_notification: kind === "visit", // visits silent, CV with sound
+    }),
+  });
+  if (!res.ok) console.error("Telegram error", res.status, await res.text());
 }
 
 function buildMessage(kind, request) {
   const h = request.headers;
   const url = new URL(request.url);
-  const ua = h.get("user-agent") || "";
-  const referer = h.get("referer") || "direct / unknown";
+  const dec = (v) => { try { return decodeURIComponent(v || ""); } catch { return v || ""; } };
 
   const location =
-    [h.get("x-vercel-ip-city"), h.get("x-vercel-ip-country-region"), h.get("x-vercel-ip-country")]
-      .filter(Boolean)
-      .map(safeDecode)
-      .join(", ") || "unknown";
-
+    [dec(h.get("x-vercel-ip-city")), h.get("x-vercel-ip-country-region"), h.get("x-vercel-ip-country")]
+      .filter(Boolean).join(", ") || "unknown";
+  const referer = h.get("referer") || "direct / unknown";
   const time = new Date().toLocaleString("en-GB", {
-    timeZone: "Asia/Kathmandu",
-    dateStyle: "medium",
-    timeStyle: "short",
+    timeZone: "Asia/Kathmandu", dateStyle: "medium", timeStyle: "short",
   });
 
-  const path = safeDecode(url.pathname);
-  const head =
-    kind === "cv"
-      ? ["📄 <b>Someone downloaded your CV</b>", "", `<b>File:</b> ${esc(path.split("/").pop())}`]
-      : ["👀 <b>Someone opened your portfolio</b>", "", `<b>Page:</b> ${esc(path)}`];
+  const head = kind === "cv"
+    ? ["📄 <b>Someone downloaded your CV</b>", "", `<b>File:</b> ${esc(dec(url.pathname.split("/").pop()))}`]
+    : ["👀 <b>Someone opened your portfolio</b>", "", `<b>Page:</b> ${esc(dec(url.pathname))}`];
 
   return [
     ...head,
     `<b>Time:</b> ${esc(time)} (NPT)`,
     `<b>Location:</b> ${esc(location)}`,
-    `<b>Device:</b> ${esc(describeUA(ua))}`,
+    `<b>Device:</b> ${esc(describeUA(h.get("user-agent") || ""))}`,
     `<b>From:</b> ${esc(referer)}`,
     `<b>IP:</b> <code>${esc(getIp(request))}</code>`,
   ].join("\n");
-}
-
-function getIp(request) {
-  const h = request.headers;
-  return (
-    h.get("x-real-ip") ||
-    (h.get("x-forwarded-for") || "").split(",")[0].trim() ||
-    "unknown"
-  );
 }
 
 function describeUA(ua) {
@@ -179,12 +155,7 @@ function describeUA(ua) {
     /Chrome\//i.test(ua) ? "Chrome" :
     /Firefox\//i.test(ua) ? "Firefox" :
     /Safari\//i.test(ua) ? "Safari" : "Unknown browser";
-  const mobile = /Mobile|Android|iPhone/i.test(ua) ? " (mobile)" : "";
-  return `${browser} on ${os}${mobile}`;
-}
-
-function safeDecode(s) {
-  try { return decodeURIComponent(s); } catch { return s; }
+  return `${browser} on ${os}${/Mobile|Android|iPhone/i.test(ua) ? " (mobile)" : ""}`;
 }
 
 function esc(s) {
