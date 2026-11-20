@@ -21,8 +21,8 @@ export const config = {
   ],
 };
 
-const CV_DEDUPE_MS = 10 * 60 * 1000;    // 10 min
-const VISIT_DEDUPE_MS = 30 * 60 * 1000; // 30 min
+const CV_DEDUPE_MS = 0;
+const VISIT_DEDUPE_MS = 0;
 const seen = new Map(); // best-effort dedupe (per edge instance)
 
 const BOT_UA = new RegExp(
